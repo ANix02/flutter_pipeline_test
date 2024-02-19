@@ -1,10 +1,15 @@
 name: Flutter CI
 
-on: push
+on: 
+  push:
+    branches: 
+      - main 
 
 jobs:
   build-and-release-macos:
     runs-on: macos-latest
+    permissions: 
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -12,12 +17,9 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
-      - name: Install project dependencies
-        run: flutter pub get
-      # - name: Generate intermediates
-        # run: flutter pub run build_runner build --delete-conflicting-outputs
-      - name: Enable macOS build
-        run: flutter config --enable-macos-desktop
+      - name: Install codemagic-cli-tools
+        run: |
+          pip3 install codemagic-cli-tools
       - name: Install the Apple certificate and provisioning profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
@@ -27,27 +29,57 @@ jobs:
         run: |
           # create variables
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          PP_PATH=$RUNNER_TEMP/build_pp.provisionprofile
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
           # import certificate and provisioning profile from secrets
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
-
           # create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
           # import certificate to keychain
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-
           # apply provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles 
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles     
+      - name: Install project dependencies
+        run: flutter pub get
+      # - name: Generate intermediates
+        # run: flutter pub run build_runner build --delete-conflicting-outputs
+      - name: Enable macOS build
+        run: flutter config --enable-macos-desktop
       - name: Build artifacts
         run: flutter build macos --release
+      - name: Sign .app
+        id: sign-app
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          APP_NAME=$(find $(pwd) -name "flutter_pipeline_test.app")
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" $KEYCHAIN_PATH
+          /usr/bin/codesign --verbose --deep --strict --options runtime --timestamp --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
+          /usr/bin/codesign --verbose --strict --options runtime --timestamp --entitlements ./macos/Runner/Release.entitlements --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
+          pkgutil --check-signature $APP_NAME
+          echo "::set-output name=appName::$APP_NAME"
+      - name: Create a dmg
+        run: |
+          echo "Install create-dmg"
+          brew install create-dmg
+          cd build/macos/Build/Products/Release
+
+          create-dmg \
+            --volname "FlutterPipelineTest" \
+            --window-pos 200 120 \
+            --window-size 800 529 \
+            --icon-size 130 \
+            --text-size 14 \
+            --icon "flutter_pipeline_test.app" 260 250 \
+            --hide-extension "flutter_pipeline_test.app" \
+            --app-drop-link 540 250 \
+            --hdiutil-quiet \
+            "FlutterPipelineTest.dmg" \
+            "flutter_pipeline_test.app"
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
@@ -56,8 +88,15 @@ jobs:
           directory: build/macos/Build/Products/Release
       - name: macOS Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: build/macos/Build/Products/Release/MacRecoveryX-${{github.ref_name}}-macos.zip
+          tag_name: Release
+          files: build/macos/Build/Products/Release/FlutterPipelineTest.dmg
+      - name: Clean up keychain and provisioning profile
+        if: ${{ always() }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+          rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.provisionprofile
+    
+
