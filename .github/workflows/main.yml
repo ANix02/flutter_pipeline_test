@@ -62,7 +62,7 @@ jobs:
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
           KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
         run: |
-          IDENTITY_ID = security find-identity -v
+          security find-identity -v
           echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
           security create-keychain -p $KEYCHAIN_PWD build.keychain
           security default-keychain -s build.keychain
