@@ -59,8 +59,9 @@ jobs:
       - name: Sign .app
         id: sign-app
         run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           APP_NAME=$(find $(pwd) -name "flutter_pipeline_test.app")
-          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" $KEYCHAIN_PATH
           /usr/bin/codesign --verbose --deep --strict --options runtime --timestamp --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
           /usr/bin/codesign --verbose --strict --options runtime --timestamp --entitlements ./macos/Runner/Release.entitlements --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
           pkgutil --check-signature $APP_NAME
