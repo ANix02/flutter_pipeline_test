@@ -52,16 +52,63 @@ jobs:
         run: flutter config --enable-macos-desktop
       - name: Build artifacts
         run: flutter build macos --release
-      - name: Sign .app
-        id: sign-app
+      - name: Codesign app bundle
+        # Extract the secrets we defined earlier as environment variables
+        env: 
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
         run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          APP_NAME=$(find $(pwd) -name "flutter_pipeline_test.app")
-          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" $KEYCHAIN_PATH
-          /usr/bin/codesign --verbose --deep --strict --options runtime --timestamp --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
-          /usr/bin/codesign --verbose --strict --options runtime --timestamp --entitlements ./macos/Runner/Release.entitlements --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
-          pkgutil --check-signature $APP_NAME
-          echo "::set-output name=appName::$APP_NAME"
+          # Turn our base64-encoded certificate back to a regular .p12 file
+          
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+      
+          # We need to create a new keychain, otherwise using the certificate will prompt
+          # with a UI dialog asking for the certificate password, which we can't
+          # use in a headless CI environment
+          
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+      
+          # We finally codesign our app bundle, specifying the Hardened runtime option
+          
+          /usr/bin/codesign --force -s "$MACOS_CERTIFICATE_NAME" --options runtime build/macos/Build/Products/Release/flutter_pipeline_test.app -v
+      - name: "Notarize app bundle"
+        # Extract the secrets we defined earlier as environment variables
+        env:
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+        run: |
+          # Store the notarization credentials so that we can prevent a UI password dialog
+          # from blocking the CI
+      
+          echo "Create keychain profile"
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
+      
+          # We can't notarize an app bundle directly, but we need to compress it as an archive.
+          # Therefore, we create a zip file containing our app bundle, so that we can send it to the
+          # notarization service
+      
+          echo "Creating temp notarization archive"
+          ditto -c -k --keepParent "build/macos/Build/Products/Release/flutter_pipeline_test.app" "notarization.zip"
+      
+          # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
+          # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
+          # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
+          # you're curious
+      
+          echo "Notarize app"
+          xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
+      
+          # Finally, we need to "attach the staple" to our executable, which will allow our app to be
+          # validated by macOS even when an internet connection is not available.
+          echo "Attach staple"
+          xcrun stapler staple "build/macos/Build/Products/Release/flutter_pipeline_test.app"
       - name: Create a dmg
         run: |
           echo "Install create-dmg"
