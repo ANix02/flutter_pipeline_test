@@ -56,21 +56,16 @@ jobs:
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles 
       - name: Build artifacts
         run: flutter build macos --release
-      - name: Codesign executable
-        env: 
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
-          IDENTITY_ID: ${{ secrets.IDENTITY_ID }}
+      - name: Sign .app
+        id: sign-app
         run: |
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
-          security create-keychain -p $KEYCHAIN_PWD build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p KEYCHAIN_PWD build.keychain
-          security import $CERTIFICATE_PATH -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k KEYCHAIN_PWD build.keychain
-          /usr/bin/codesign --force -s $IDENTITY_ID ./path/to/you/app -v  
+          APP_NAME=$(find $(pwd) -name "flutter_pipeline_test.app")
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" build.keychain
+          /usr/bin/codesign --verbose --deep --strict --options runtime --timestamp --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
+          /usr/bin/codesign --verbose --strict --options runtime --timestamp --entitlements ./macos/Runner/Release.entitlements --force -s "${{ secrets.IDENTITY_ID }}" $APP_NAME -v
+          pkgutil --check-signature $APP_NAME
+
+          echo "::set-output name=appName::$APP_NAME"
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
