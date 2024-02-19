@@ -79,7 +79,7 @@ jobs:
             --window-size 800 529 \
             --icon-size 130 \
             --text-size 14 \
-            #--icon "<YOUR-APP-NAME>.app" 260 250 \
+            --icon "flutter_pipeline_test.app" 260 250 \
             --hide-extension "flutter_pipeline_test.app" \
             --app-drop-link 540 250 \
             --hdiutil-quiet \
