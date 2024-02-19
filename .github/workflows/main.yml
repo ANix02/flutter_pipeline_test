@@ -63,11 +63,12 @@ jobs:
           KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
           IDENTITY_ID: ${{ secrets.IDENTITY_ID }}
         run: |
-          echo $MACOS_CERTIFICATE | base64 —-decode > certificate.p12
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
           security create-keychain -p $KEYCHAIN_PWD build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p KEYCHAIN_PWD build.keychain
-          security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+          security import $CERTIFICATE_PATH -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k KEYCHAIN_PWD build.keychain
           /usr/bin/codesign --force -s $IDENTITY_ID ./path/to/you/app -v  
       - name: Archive Release
