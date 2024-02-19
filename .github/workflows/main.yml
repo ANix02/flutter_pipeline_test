@@ -67,6 +67,24 @@ jobs:
           pkgutil --check-signature $APP_NAME
 
           echo "::set-output name=appName::$APP_NAME"
+      - name: Create a dmg
+        run: |
+          echo "Install create-dmg"
+          brew install create-dmg
+          cd build/macos/Build/Products/Release
+
+          create-dmg \
+            --volname "FlutterPipelineTest" \
+            --window-pos 200 120 \
+            --window-size 800 529 \
+            --icon-size 130 \
+            --text-size 14 \
+            #--icon "<YOUR-APP-NAME>.app" 260 250 \
+            --hide-extension "flutter_pipeline_test.app" \
+            --app-drop-link 540 250 \
+            --hdiutil-quiet \
+            "FlutterPipelineTest.dmg" \
+            "flutter_pipeline_test.app"
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
@@ -79,6 +97,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: Release
-          files: build/macos/Build/Products/Release/MacRecoveryX-${{github.ref_name}}-macos.zip
+          files: build/macos/Build/Products/Release/FlutterPipelineTest.dmg
     
 
