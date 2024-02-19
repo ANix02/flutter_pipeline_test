@@ -64,7 +64,10 @@ jobs:
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           echo -n "$MACOS_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
-          security unlock-keychain -p "${{ secrets.KEYCHAIN_PWD }}" $KEYCHAIN_PATH
+          
+          security create-keychain -p <your-password> build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p <your-password> build.keychain
           security import $CERTIFICATE_PATH -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k KEYCHAIN_PWD build.keychain
           /usr/bin/codesign --force -s $IDENTITY_ID build/macos/Build/Products/Release -v    
