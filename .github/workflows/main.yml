@@ -17,6 +17,9 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
+      - name: Install codemagic-cli-tools
+        run: |
+          pip3 install codemagic-cli-tools
       - name: Install project dependencies
         run: flutter pub get
       # - name: Generate intermediates
@@ -53,6 +56,20 @@ jobs:
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles 
       - name: Build artifacts
         run: flutter build macos --release
+      - name: Codesign executable
+        env: 
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+        run: |
+          IDENTITY_ID = security find-identity -v
+          echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PWD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p KEYCHAIN_PWD build.keychain
+          security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k KEYCHAIN_PWD build.keychain
+          /usr/bin/codesign --force -s $IDENTITY_ID ./path/to/you/app -v  
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
