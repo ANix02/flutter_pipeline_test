@@ -17,9 +17,6 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
-      - name: Install codemagic-cli-tools
-        run: |
-          pip3 install codemagic-cli-tools
       - name: Install the Apple certificate and provisioning profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
