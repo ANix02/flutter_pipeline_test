@@ -43,7 +43,9 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles     
       - name: Install project dependencies
-        run: flutter pub get
+        run: |
+          flutter clean
+          flutter pub get
      
       # - name: Generate intermediates
         # run: flutter pub run build_runner build --delete-conflicting-outputs
