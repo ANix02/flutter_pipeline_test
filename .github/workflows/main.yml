@@ -17,6 +17,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
+      - uses: dart-lang/setup-dart@v1
       - name: Install the Apple certificate and provisioning profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
@@ -43,13 +44,7 @@ jobs:
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles     
       - name: Install project dependencies
         run: flutter pub get
-      - name: Import sparkle private key
-        env:
-          SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
-        run: |
-          SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key
-          echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
-          dart run auto_updater:generate_keys -f $SPARKLE_CERTIFICATE_PATH
+     
       # - name: Generate intermediates
         # run: flutter pub run build_runner build --delete-conflicting-outputs
       - name: Enable macOS build
@@ -137,6 +132,16 @@ jobs:
           type: 'zip'
           filename: FlutterPipelineTest-macos.zip
           directory: build/macos/Build/Products/Release
+          exclusions: 'FlutterPipelineTest.dmg'
+      - name: Sign Archive
+        env:
+          SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
+        run: |
+          SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key.key
+          echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
+          echo $SPARKLE_PRIVATE_KEY_BASE64 | base64 --decode > sparklekey
+          dart pub get
+          dart run auto_updater:sign_update -s sparklekey build/macos/Build/Products/Release/FlutterPipelineTest-macos.zip
       - name: macOS Release
         uses: softprops/action-gh-release@v1
         env:
