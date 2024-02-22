@@ -17,6 +17,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
+      - uses: dart-lang/setup-dart@v1
       - name: Install the Apple certificate and provisioning profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
@@ -49,6 +50,7 @@ jobs:
         run: |
           SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key
           echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
+          dart pub get
           dart run auto_updater:generate_keys -f $SPARKLE_CERTIFICATE_PATH
       # - name: Generate intermediates
         # run: flutter pub run build_runner build --delete-conflicting-outputs
