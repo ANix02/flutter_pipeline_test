@@ -51,7 +51,6 @@ jobs:
           SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key.key
           echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
           echo $SPARKLE_PRIVATE_KEY_BASE64 | base64 --decode > sparklekey
-          echo sparklekey
           dart pub get
           dart run auto_updater:generate_keys -f sparklekey
       # - name: Generate intermediates
