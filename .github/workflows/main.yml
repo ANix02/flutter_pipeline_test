@@ -48,7 +48,7 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
         run: |
-          SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key
+          SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key.key
           echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
           dart pub get
           dart run auto_updater:generate_keys -f $SPARKLE_CERTIFICATE_PATH
