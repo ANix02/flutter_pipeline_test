@@ -1,4 +1,3 @@
-import 'package:auto_updater/auto_updater.dart';
 import 'package:flutter/material.dart';
 
 void main() async {
