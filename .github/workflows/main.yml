@@ -177,15 +177,15 @@ jobs:
             --hide-extension "flutter_pipeline_test.app" \
             --app-drop-link 540 250 \
             --hdiutil-quiet \
-            "FlutterPipelineTest.dmg" \
+            "FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg" \
             "flutter_pipeline_test.app"
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
           type: 'zip'
-          filename: FlutterPipelineTest-macos.zip
+          filename: FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.zip
           directory: build/macos/Build/Products/Release
-          exclusions: 'FlutterPipelineTest.dmg'
+          exclusions: 'FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg'
       - name: macOS Release
         uses: softprops/action-gh-release@v1
         env:
@@ -194,8 +194,8 @@ jobs:
           tag_name: ${{ needs.gitRelease.outputs.new_pubspec_version }}
           release_name: Release ${{ needs.gitRelease.outputs.new_pubspec_version }} 
           files: |
-            build/macos/Build/Products/Release/FlutterPipelineTest.dmg
-            build/macos/Build/Products/Release/FlutterPipelineTest-macos.zip
+            build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg
+            build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.zip
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
         run: |
