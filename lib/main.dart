@@ -63,7 +63,7 @@ class MyApp extends StatelessWidget {
 
           // Make sure that this link includes the platform extension with which to save your binary.
           // If you use https://exapmle.com/latest/macos for instance then you need to create your own file using `getDownloadFileLocation`
-          return "https://github.com/ANix02/flutter_pipeline_test/releases/download/$version/updat-${Platform.operatingSystem}-$version.$platformExt";
+          return "https://github.com/ANix02/flutter_pipeline_test/releases/download/$version/FlutterPipelineTest-${Platform.operatingSystem}-$version.$platformExt";
         },
         appName: "Updat Example", // This is used to name the downloaded files.
         getChangelog: (_, __) async {
