@@ -192,7 +192,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ needs.gitRelease.outputs.new_pubspec_version }}
-          release_name: Release ${{ needs.gitRelease.outputs.new_pubspec_version }} 
+          name: Release ${{ needs.gitRelease.outputs.new_pubspec_version }} 
           files: |
             build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg
             build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.zip
