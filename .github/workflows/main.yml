@@ -38,8 +38,8 @@ jobs:
         id: get_new_pubspec_version
         run: |
           last_prod_release=$(echo "${{ steps.get_latest_prod_release.outputs.tag }}" | sed -E "s/release\/prod\/(.*)/\1/")
-          next_pubspec_version=$(/scripts/semver.sh "$last_prod_release" "${{ steps.semantic_release_info.outputs.new_release_version }}")
-          sed -Ei "s/^version: (.*)/version: $next_pubspec_version/" app/pubspec.yaml
+          next_pubspec_version=$(./scripts/semver.sh "$last_prod_release" "${{ steps.semantic_release_info.outputs.new_release_version }}")
+          sed -Ei "s/^version: (.*)/version: $next_pubspec_version/" pubspec.yaml
           echo "next_pubspec_version=$next_pubspec_version" >> $GITHUB_OUTPUT
       - name: 🔀 Push bump commit with changelog to repository
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
@@ -53,6 +53,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-release-macos:
+    name: build-and-release-macos
+    needs: gitRelease
     runs-on: macos-latest
     permissions: 
       contents: write
@@ -63,6 +65,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
+          cache: true
     #  - uses: dart-lang/setup-dart@v1
       - name: Install the Apple certificate and provisioning profile
         env:
@@ -174,24 +177,25 @@ jobs:
             --hide-extension "flutter_pipeline_test.app" \
             --app-drop-link 540 250 \
             --hdiutil-quiet \
-            "FlutterPipelineTest.dmg" \
+            "FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg" \
             "flutter_pipeline_test.app"
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
           type: 'zip'
-          filename: FlutterPipelineTest-macos.zip
+          filename: FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.zip
           directory: build/macos/Build/Products/Release
-          exclusions: 'FlutterPipelineTest.dmg'
+          exclusions: 'FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg'
       - name: macOS Release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: Release
+          tag_name: ${{ needs.gitRelease.outputs.new_pubspec_version }}
+          release_name: Release ${{ needs.gitRelease.outputs.new_pubspec_version }} 
           files: |
-            build/macos/Build/Products/Release/FlutterPipelineTest.dmg
-            build/macos/Build/Products/Release/FlutterPipelineTest-macos.zip
+            build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.dmg
+            build/macos/Build/Products/Release/FlutterPipelineTest-macos-${{ needs.gitRelease.outputs.new_pubspec_version }}.zip
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
         run: |
