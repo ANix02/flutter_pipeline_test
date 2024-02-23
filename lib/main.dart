@@ -67,7 +67,8 @@ class MyApp extends StatelessWidget {
           // If you use https://exapmle.com/latest/macos for instance then you need to create your own file using `getDownloadFileLocation`
           return "https://github.com/ANix02/flutter_pipeline_test/releases/download/$version/FlutterPipelineTest-${Platform.operatingSystem}-$version.$platformExt";
         },
-        appName: "Updat Example", // This is used to name the downloaded files.
+        appName:
+            "FlutterPipelineTest", // This is used to name the downloaded files.
         getChangelog: (_, __) async {
           // That same latest endpoint gives us access to a markdown-flavored release body. Perfect!
           final data = await http.get(Uri.parse(
