@@ -54,7 +54,7 @@ jobs:
       - name: Enable macOS build
         run: flutter config --enable-macos-desktop
       - name: Build artifacts
-        run: flutter build macos --release
+        run: flutter build macos --release --split-debug-info=./debug-info --obfuscate
       - name: Codesign app bundle
         # Extract the secrets we defined earlier as environment variables
         env: 
