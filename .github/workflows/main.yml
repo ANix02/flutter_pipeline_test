@@ -6,6 +6,55 @@ on:
       - main 
 
 jobs:
+  gitRelease:
+    name: Create git release for Prod app
+    runs-on: ubuntu-latest
+    outputs:
+      new_pubspec_version: "${{ steps.get_new_pubspec_version.outputs.next_pubspec_version }}"
+    steps:
+      - name: 👁️ Check branch validity
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "⚠️ Error: you tried to create a release from '${{ github.ref }}' branch but production releases can only be created from 'main' branch"
+      - name: ⬇️ Checkout repository with tags
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🏷️🧪 Get latest Prod release
+        id: get_latest_prod_release
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        with:
+          prefix: "release/prod/"
+          fallback: 0.0.1
+      - name: ⚙️ Prepare semantic release configuration
+        run: |
+          mv .releaserc.prod.json .releaserc.json
+      - name: 🏷️✍️ Create new Prod release tag
+        id: semantic_release_info
+        uses: cycjimmy/semantic-release-action@v3.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          semantic_version: 19
+      - name: 📝 Edit pubspec version
+        id: get_new_pubspec_version
+        run: |
+          last_prod_release=$(echo "${{ steps.get_latest_prod_release.outputs.tag }}" | sed -E "s/release\/prod\/(.*)/\1/")
+          next_pubspec_version=$(./scripts/semver.sh "$last_prod_release" "${{ steps.semantic_release_info.outputs.new_release_version }}")
+          sed -Ei "s/^version: (.*)/version: $next_pubspec_version/" app/pubspec.yaml
+          echo "next_pubspec_version=$next_pubspec_version" >> $GITHUB_OUTPUT
+      - name: 🔀 Push bump commit with changelog to repository
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: "chore(*): bump to version ${{ steps.get_new_pubspec_version.outputs.next_pubspec_version }} [skip ci]"
+      - name: 🏷️✍️ Create new Prod release tag
+        uses: rickstaa/action-create-tag@v1
+        with:
+          tag: "release/prod/${{ steps.get_new_pubspec_version.outputs.next_pubspec_version }}"
+          message: "Prod release ${{ steps.get_new_pubspec_version.outputs.next_pubspec_version }}"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-release-macos:
     runs-on: macos-latest
     permissions: 
@@ -17,7 +66,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
-      - uses: dart-lang/setup-dart@v1
+    #  - uses: dart-lang/setup-dart@v1
       - name: Install the Apple certificate and provisioning profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
@@ -46,13 +95,15 @@ jobs:
         run: |
           flutter clean
           flutter pub get
+          cd macos
+          pod install
      
       # - name: Generate intermediates
         # run: flutter pub run build_runner build --delete-conflicting-outputs
       - name: Enable macOS build
         run: flutter config --enable-macos-desktop
       - name: Build artifacts
-        run: flutter build macos --release
+        run: flutter build macos --release --split-debug-info=./debug-info --obfuscate
       - name: Codesign app bundle
         # Extract the secrets we defined earlier as environment variables
         env: 
@@ -135,15 +186,6 @@ jobs:
           filename: FlutterPipelineTest-macos.zip
           directory: build/macos/Build/Products/Release
           exclusions: 'FlutterPipelineTest.dmg'
-      - name: Sign Archive
-        env:
-          SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
-        run: |
-          SPARKLE_CERTIFICATE_PATH=$RUNNER_TEMP/sparkle_private_key.key
-          echo -n "$SPARKLE_PRIVATE_KEY_BASE64" | base64 --decode -o $SPARKLE_CERTIFICATE_PATH
-          echo $SPARKLE_PRIVATE_KEY_BASE64 | base64 --decode > sparklekey
-          dart pub get
-          dart run auto_updater:sign_update -s sparklekey build/macos/Build/Products/Release/FlutterPipelineTest-macos.zip
       - name: macOS Release
         uses: softprops/action-gh-release@v1
         env:
