@@ -53,6 +53,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-release-macos:
+    name: build-and-release-macos
+    needs: gitRelease
     runs-on: macos-latest
     permissions: 
       contents: write
@@ -63,6 +65,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
+          cache: true
     #  - uses: dart-lang/setup-dart@v1
       - name: Install the Apple certificate and provisioning profile
         env:
