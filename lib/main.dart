@@ -47,6 +47,8 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: UpdatWindowManager(
+        closeOnInstall: true,
+
         currentVersion:
             version, // In this case we are importing it form a constants file.
         getLatestVersion: () async {
